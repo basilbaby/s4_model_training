@@ -109,8 +109,8 @@ Path('logs').mkdir(exist_ok=True)
 # Add after imports
 run_id = None  # Global variable for run_id
 
-def save_training_log(epoch, batch_idx, model1_loss, model1_acc, model2_loss, model2_acc, elapsed_time=None):
-    global run_id  # Access the global run_id
+def save_training_log(epoch, batch_idx, model1_loss, model1_acc, model2_loss, model2_acc, elapsed_time=None, is_complete=False):
+    global run_id
     log = {
         'run_id': run_id,
         'epoch': epoch,
@@ -128,7 +128,8 @@ def save_training_log(epoch, batch_idx, model1_loss, model1_acc, model2_loss, mo
         'device': backend,
         'cores': torch.get_num_threads() if backend == 'Apple Silicon GPU' else None,
         'elapsed_time': str(timedelta(seconds=int(elapsed_time))) if elapsed_time else None,
-        'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'training_complete': is_complete
     }
     with open('logs/training_log.json', 'w') as f:
         json.dump(log, f)
@@ -189,6 +190,10 @@ def train_models(epochs=10):
     
     total_time = time.time() - start_time
     print(f"\nTraining completed in: {timedelta(seconds=int(total_time))}")
+    
+    # Save final log with complete flag
+    save_training_log(epochs-1, len(train_loader)-1, loss1.item(), acc1, 
+                     loss2.item(), acc2, total_time, is_complete=True)
     
     return model1, model2
 

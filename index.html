@@ -32,7 +32,7 @@
             display: grid;
             grid-template-columns: 1fr 2fr;
             gap: 15px;
-            height: calc(100vh - 60px);
+            flex-grow: 1;
             overflow: hidden;
         }
         .left-panel {
@@ -40,87 +40,108 @@
             flex-direction: column;
             gap: 15px;
             overflow-y: auto;
-            padding-right: 10px;
         }
         .right-panel {
             display: flex;
             flex-direction: column;
             gap: 15px;
-            overflow-y: auto;
         }
         #chart { 
             width: 100%;
-            height: 60vh;
+            height: 500px;
             background: white;
-            flex-shrink: 0;
         }
         .model-stats {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
-            flex-shrink: 0;
         }
         .model-card {
             background: #f5f5f5;
             padding: 12px;
             border-radius: 8px;
-            font-size: 0.9em;
-        }
-        .model-card h3 {
-            margin: 0 0 8px 0;
-        }
-        .model-card p {
-            margin: 5px 0;
         }
         .time { color: #2196F3; font-weight: bold; }
-        .training-info {
-            background: #f5f5f5;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 0.9em;
-            flex-shrink: 0;
-        }
-        .training-info p {
-            margin: 5px 0;
-        }
         #results {
-            overflow-y: auto;
             background: #f5f5f5;
             padding: 12px;
             border-radius: 8px;
+            overflow-y: auto;
         }
-        .current-run, .previous-run {
-            margin-top: 15px;
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            padding: 20px;
+            box-sizing: border-box;
         }
-        .current-run h4, .previous-run h4 {
-            margin: 0 0 10px 0;
-            color: #2196F3;
+        
+        .modal-content {
+            max-width: 90%;
+            max-height: 90%;
+            margin: auto;
+            display: block;
+            position: relative;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .result-image {
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        
+        .result-image:hover {
+            opacity: 0.8;
+        }
+        
+        /* Add zoom animation */
+        .zoom {
+            animation: zoom 0.3s ease-in-out;
+        }
+        
+        @keyframes zoom {
+            from {transform: scale(0)}
+            to {transform: scale(1)}
+        }
+        .results-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .current-run-section {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #2196F3;
+        }
+        .previous-runs-section {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
         }
         .previous-run-item {
             margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid #ddd;
-        }
-        #results img {
-            max-width: 100%;
-            height: auto;
-            margin: 10px 0;
-            border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #555;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #9e9e9e;
         }
     </style>
 </head>
@@ -144,21 +165,21 @@
                     <p>Accuracy: <span id="model2_accuracy">-</span></p>
                 </div>
             </div>
-            <div class="training-info">
-                <p>Device: <span id="device" style="font-weight: bold;">-</span></p>
+            <div class="model-card">
+                <p>Run ID: <span id="current-run-id">-</span></p>
+                <p>Device: <span id="device">-</span></p>
                 <p>Time: <span id="elapsed_time" class="time">-</span></p>
                 <p>Epoch: <span id="epoch">-</span></p>
                 <p>Batch: <span id="batch">-</span></p>
             </div>
-            <div id="results">
-                <h3>Test Results</h3>
-                <div class="current-run">
-                    <h4>Current Run: <span id="current-run-id">-</span></h4>
-                    <p class="timestamp">Started: <span id="current-run-time">-</span></p>
-                    <img id="current-results-img" style="display: none;" />
+            <div class="results-container">
+                <div class="current-run-section">
+                    <h3 id="current-results-heading">Current Run</h3>
+                    <p>Run ID: <span id="current-run-id">-</span></p>
+                    <img id="current-results-img" class="result-image" style="display: none; max-width: 100%;" onclick="openModal(this)" />
                 </div>
-                <div class="previous-run">
-                    <h4>Previous Run Results</h4>
+                <div class="previous-runs-section">
+                    <h3>Previous Runs</h3>
                     <div id="previous-runs"></div>
                 </div>
             </div>
@@ -168,79 +189,86 @@
         </div>
     </div>
 
+    <div id="imageModal" class="modal">
+        <span class="modal-close">&times;</span>
+        <img class="modal-content" id="modalImage">
+    </div>
+
     <script>
         let model1_losses = [];
         let model2_losses = [];
         let model1_accuracies = [];
         let model2_accuracies = [];
         let iterations = [];
+        let currentRunId = null;
 
-        function updateChart() {
-            const trace1 = {
-                y: model1_losses,
-                x: iterations,
-                name: 'Model 1 Loss',
-                type: 'scatter',
-                line: {color: '#1f77b4'}
-            };
-
-            const trace2 = {
-                y: model2_losses,
-                x: iterations,
-                name: 'Model 2 Loss',
-                type: 'scatter',
-                line: {color: '#ff7f0e'}
-            };
-
-            const trace3 = {
-                y: model1_accuracies,
-                x: iterations,
-                name: 'Model 1 Accuracy',
-                type: 'scatter',
-                yaxis: 'y2',
-                line: {color: '#2ca02c'}
-            };
-
-            const trace4 = {
-                y: model2_accuracies,
-                x: iterations,
-                name: 'Model 2 Accuracy',
-                type: 'scatter',
-                yaxis: 'y2',
-                line: {color: '#d62728'}
-            };
+        // Initialize the plot
+        function initPlot() {
+            const data = [
+                {
+                    y: model1_losses,
+                    name: 'Model 1 Loss',
+                    type: 'scatter',
+                    line: {color: '#1f77b4'}
+                },
+                {
+                    y: model2_losses,
+                    name: 'Model 2 Loss',
+                    type: 'scatter',
+                    line: {color: '#ff7f0e'}
+                },
+                {
+                    y: model1_accuracies,
+                    name: 'Model 1 Accuracy',
+                    type: 'scatter',
+                    yaxis: 'y2',
+                    line: {color: '#2ca02c'}
+                },
+                {
+                    y: model2_accuracies,
+                    name: 'Model 2 Accuracy',
+                    type: 'scatter',
+                    yaxis: 'y2',
+                    line: {color: '#d62728'}
+                }
+            ];
 
             const layout = {
-                margin: { l: 50, r: 50, t: 30, b: 30 },
+                title: 'Training Progress',
                 showlegend: true,
                 legend: {
                     orientation: 'h',
                     y: -0.2
                 },
-                yaxis: {
-                    title: 'Loss',
-                    titlefont: {size: 11},
-                    tickfont: {size: 10}
-                },
+                yaxis: {title: 'Loss'},
                 yaxis2: {
                     title: 'Accuracy',
-                    titlefont: {size: 11},
-                    tickfont: {size: 10},
                     overlaying: 'y',
                     side: 'right'
-                },
-                xaxis: {
-                    tickfont: {size: 10}
                 }
             };
 
-            Plotly.newPlot('chart', [trace1, trace2, trace3, trace4], layout);
+            Plotly.newPlot('chart', data, layout);
         }
 
-        function updateStats() {
+        function updateData() {
             fetch('/logs/training_log.json')
                 .then(response => response.json())
                 .then(data => {
+                    // Update run information
+                    const runId = data.run_id;
+                    if (currentRunId !== runId) {
+                        // Reset arrays for new run
+                        model1_losses = [];
+                        model2_losses = [];
+                        model1_accuracies = [];
+                        model2_accuracies = [];
+                        iterations = [];
+                        currentRunId = runId;
+                    }
+
+                    // Update stats
+                    document.getElementById('current-run-id').textContent = runId;
                     document.getElementById('device').textContent = data.device;
                     document.getElementById('epoch').textContent = data.epoch;
                     document.getElementById('batch').textContent = data.batch;
@@ -254,65 +282,150 @@
                     document.getElementById('model2_loss').textContent = data.model2.loss.toFixed(4);
                     document.getElementById('model2_accuracy').textContent = data.model2.accuracy.toFixed(4);
 
+                    // Update arrays
                     model1_losses.push(data.model1.loss);
                     model2_losses.push(data.model2.loss);
                     model1_accuracies.push(data.model1.accuracy);
                     model2_accuracies.push(data.model2.accuracy);
-                    iterations.push(model1_losses.length);
+                    iterations.push(iterations.length);
 
-                    updateChart();
+                    // Update plot
+                    Plotly.update('chart', {
+                        y: [model1_losses, model2_losses, model1_accuracies, model2_accuracies],
+                        x: [iterations, iterations, iterations, iterations]
+                    });
+
+                    // Handle results image
+                    if (data.training_complete) {
+                        document.getElementById('current-results-heading').textContent = 'Current Run Results';
+                        const imgUrl = `/logs/results_${runId}.png`;
+                        fetch(imgUrl, {method: 'HEAD'})
+                            .then(response => {
+                                if (response.ok) {
+                                    document.getElementById('current-results-img').src = imgUrl;
+                                    document.getElementById('current-results-img').style.display = 'block';
+                                }
+                            });
+                    }
                 })
                 .catch(error => console.error('Error:', error));
-
-            fetch('/logs/results.png', {method: 'HEAD'})
-                .then(response => {
-                    if (response.ok) {
-                        document.getElementById('results-img').src = '/logs/results.png';
-                        document.getElementById('results-img').style.display = 'block';
-                    }
-                });
         }
 
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initPlot();
+            // Update every second
+            setInterval(updateData, 1000);
+        });
+
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImage');
+        const closeBtn = document.getElementsByClassName('modal-close')[0];
+        
+        function openModal(img) {
+            modal.style.display = 'block';
+            modalImg.src = img.src;
+            modalImg.classList.add('zoom');
+        }
+        
+        closeBtn.onclick = function() {
+            modal.style.display = 'none';
+        }
+        
+        modal.onclick = function(event) {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+        
+        function updatePreviousRuns(files) {
+            const previousRunsDiv = document.getElementById('previous-runs');
+            previousRunsDiv.innerHTML = '';
+            
+            files.forEach(runId => {
+                const runDiv = document.createElement('div');
+                runDiv.className = 'previous-run-item';
+                runDiv.innerHTML = `
+                    <p>Run ID: ${runId}</p>
+                    <img src="/logs/results_${runId}.png" 
+                         class="result-image" 
+                         style="max-width: 100%; height: auto;" 
+                         onclick="openModal(this)" />
+                `;
+                previousRunsDiv.appendChild(runDiv);
+            });
+        }
+        
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && modal.style.display === 'block') {
+                modal.style.display = 'none';
+            }
+        });
+
         function updateResults() {
-            // Get current run results
             fetch('/logs/training_log.json')
                 .then(response => response.json())
                 .then(data => {
                     const runId = data.run_id;
-                    document.getElementById('current-run-id').textContent = runId;
-                    document.getElementById('current-run-time').textContent = data.timestamp;
+                    currentRunId = runId;
                     
-                    // Check for current run's results image
-                    fetch(`/logs/results_${runId}.png`, {method: 'HEAD'})
-                        .then(response => {
-                            if (response.ok) {
-                                document.getElementById('current-results-img').src = `/logs/results_${runId}.png`;
-                                document.getElementById('current-results-img').style.display = 'block';
-                            }
-                        });
+                    // Update current run section
+                    document.getElementById('current-run-id').textContent = runId;
+                    
+                    if (data.training_complete) {
+                        document.getElementById('current-results-heading').textContent = 'Current Run (Complete)';
+                        const imgUrl = `/logs/results_${runId}.png`;
+                        fetch(imgUrl, {method: 'HEAD'})
+                            .then(response => {
+                                if (response.ok) {
+                                    document.getElementById('current-results-img').src = imgUrl;
+                                    document.getElementById('current-results-img').style.display = 'block';
+                                }
+                            });
+                    } else {
+                        document.getElementById('current-results-heading').textContent = 'Current Run (In Progress)';
+                        document.getElementById('current-results-img').style.display = 'none';
+                    }
+
+                    // Update previous runs
+                    updatePreviousRuns();
                 })
                 .catch(error => console.error('Error:', error));
+        }
 
-            // List previous runs
+        function updatePreviousRuns() {
             fetch('/logs')
                 .then(response => response.text())
                 .then(text => {
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(text, 'text/html');
+                    
+                    // Get all result files except current run
                     const files = Array.from(doc.querySelectorAll('a'))
                         .map(a => a.href)
                         .filter(href => href.includes('results_'))
-                        .map(href => href.split('results_')[1].split('.')[0]);
+                        .map(href => href.split('results_')[1].split('.')[0])
+                        .filter(id => id !== currentRunId)
+                        .sort()
+                        .reverse();
 
                     const previousRunsDiv = document.getElementById('previous-runs');
-                    previousRunsDiv.innerHTML = '';
+                    
+                    if (files.length === 0) {
+                        previousRunsDiv.innerHTML = '<p>No previous runs available</p>';
+                        return;
+                    }
 
+                    previousRunsDiv.innerHTML = '';
                     files.forEach(runId => {
                         const runDiv = document.createElement('div');
                         runDiv.className = 'previous-run-item';
                         runDiv.innerHTML = `
                             <p>Run ID: ${runId}</p>
-                            <img src="/logs/results_${runId}.png" style="max-width: 100%; height: auto;" />
+                            <img src="/logs/results_${runId}.png" 
+                                 class="result-image" 
+                                 style="max-width: 100%; height: auto;" 
+                                 onclick="openModal(this)" />
                         `;
                         previousRunsDiv.appendChild(runDiv);
                     });
@@ -320,11 +433,8 @@
                 .catch(error => console.error('Error:', error));
         }
 
-        // Add updateResults to the interval
-        setInterval(() => {
-            updateStats();
-            updateResults();
-        }, 1000);
+        // Update every second
+        setInterval(updateResults, 1000);
     </script>
 </body>
 </html>
